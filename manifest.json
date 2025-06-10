@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "HTTP Request Logger",
+  "version": "1.0",
+  "description": "Logs GET and POST request URLs and response headers.",
+  "permissions": [
+    "webRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
