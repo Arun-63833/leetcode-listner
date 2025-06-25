@@ -1,16 +1,31 @@
 {
   "manifest_version": 3,
-  "name": "HTTP Spy Extension",
+  "name": "leetcodeListener",
   "version": "1.0",
-  "description": "Intercept HTTP responses",
-  "permissions": ["scripting"],
-  "host_permissions": ["https://leetcode.com/*"],
+  "description": "Intercept Leetcode's POST responses and forward them to a backend server",
+
+  "permissions": [
+    "scripting",
+    "identity",
+    "storage"
+  ],
+
+  "host_permissions": [
+    "https://leetcode.com/*"
+  ],
+
+  "action": {
+    "default_popup": "login.html"
+    
+  },
+
   "web_accessible_resources": [
     {
       "resources": ["inject.js"],
       "matches": ["https://leetcode.com/*"]
     }
   ],
+
   "content_scripts": [
     {
       "matches": ["https://leetcode.com/*"],
@@ -18,4 +33,6 @@
       "run_at": "document_start"
     }
   ]
+
+  
 }
