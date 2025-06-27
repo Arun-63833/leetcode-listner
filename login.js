@@ -1,8 +1,4 @@
-//alert("login.js loaded");
-
 document.addEventListener('DOMContentLoaded', function () {
-  //alert("DOM fully loaded");
-
   const loginBtn = document.getElementById('Login');
 
   if (!loginBtn) {
@@ -11,20 +7,17 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   loginBtn.addEventListener('click', function () {
-    //alert("Login button clicked");
-
     const clientId = "152003933117-im7i06n5u0b34moj5dughb80avfv57m3.apps.googleusercontent.com";
     const redirectUri = chrome.identity.getRedirectURL();
-    //alert("Redirect URI: " + redirectUri);
-
     const scope = "openid email profile";
+    const nonce = crypto.randomUUID(); // Secure, unique nonce
 
     const authUrl = `https://accounts.google.com/o/oauth2/auth?` +
       `client_id=${clientId}` +
-      `&response_type=id_token token` +  // ✅ returns both access_token and id_token
+      `&response_type=id_token token` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&scope=${encodeURIComponent(scope)}` +
-      `&nonce=random_nonce`;  // required when using id_token
+      `&nonce=${nonce}`;
 
     chrome.identity.launchWebAuthFlow(
       { url: authUrl, interactive: true },
@@ -33,9 +26,6 @@ document.addEventListener('DOMContentLoaded', function () {
           alert("❌ Authentication failed: " + chrome.runtime.lastError.message);
           return;
         }
-
-        //alert("✅ Redirect URL received");
-        //alert(redirectUrl);
 
         const hash = new URL(redirectUrl).hash.substring(1);
         const params = new URLSearchParams(hash);
@@ -53,18 +43,20 @@ document.addEventListener('DOMContentLoaded', function () {
           return;
         }
 
-        //alert("✅ Access token:\n" + accessToken);
-        //alert("✅ ID token:\n" + idToken);
-
-        // 🔁 Exchange ID token with backend
-        fetch("http://localhost:8080/getToken", {
+        // Exchange ID token with your backend
+        fetch("https://notifyme-e7b21.df.r.appspot.com/getToken", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${idToken}`, // ✅ Send the ID token
+            Authorization: `Bearer ${idToken}`,
             "Content-Type": "application/json"
           }
         })
-        .then(response => response.json())
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+          }
+          return response.json();
+        })
         .then(data => {
           const appAccessToken = data.access_token;
           const refreshToken = data.refresh_token;
