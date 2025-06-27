@@ -1,10 +1,14 @@
 (function () {
   const originalFetch = window.fetch;
+  let lastSubmittedProblemSlug = null;
 
   window.fetch = async function (...args) {
     const url = args[0];
     const problemMatch = url.match(/\/problems\/([^/]+)\/submit\/?/);
-    const problemSlug = problemMatch ? problemMatch[1] : null;
+    if (problemMatch) {
+      lastSubmittedProblemSlug = problemMatch[1];
+      localStorage.setItem('lastProblemSlug', lastSubmittedProblemSlug);
+    }
 
     const response = await originalFetch.apply(this, args);
     const responseClone = response.clone();
@@ -13,16 +17,20 @@
       responseClone.text().then((bodyText) => {
         try {
           const parsed = JSON.parse(bodyText);
-          if (parsed.state === "PENDING") return;
+
+          const nonFinalStates = ["PENDING", "STARTED", "STARTING"];
+          if (nonFinalStates.includes(parsed.state)) return;
+
+          const fallbackSlug = location.pathname.match(/\/problems\/([^/]+)\//)?.[1];
+          const problemSlug = lastSubmittedProblemSlug || localStorage.getItem('lastProblemSlug') || fallbackSlug;
 
           const data = {
             name: problemSlug,
-            status_code: parsed.status_code,
-            run_success: parsed.run_success,
-            status_msg: parsed.status_msg,
+            status_code: parsed.status_code ?? 0,
+            run_success: parsed.run_success ?? false,
+            status_msg: parsed.status_msg ?? "Unknown",
           };
 
-          // Ask content.js to return tokens
           window.postMessage({ type: "GET_TOKENS", payload: data }, "*");
 
           const tokenHandler = (event) => {
@@ -32,7 +40,6 @@
             const { access_token, refresh_token } = event.data;
 
             if (!refresh_token) {
-              alert("❌ Please login first.");
               cleanup();
               return;
             }
@@ -52,16 +59,12 @@
                   }
                   return res.json();
                 })
-                .then((json) => {
-                  alert("✅ Sent to backend: " + JSON.stringify(json));
-                  cleanup();
-                })
+                .then(() => cleanup())
                 .catch((err) => {
                   console.error("❌ Send failed:", err.message);
                   if (err.message.includes("401") || err.message.includes("403")) {
                     refreshAccess();
                   } else {
-                    alert("❌ Send failed: " + err.message);
                     cleanup();
                   }
                 });
@@ -83,15 +86,13 @@
                 })
                 .then((json) => {
                   if (json.access_token) {
-                    alert("🔄 Token refreshed");
                     sendData(json.access_token);
                   } else {
-                    alert("❌ Refresh failed");
                     cleanup();
                   }
                 })
                 .catch((err) => {
-                  alert("❌ Token refresh failed: " + err.message);
+                  console.error("❌ Token refresh failed:", err.message);
                   cleanup();
                 });
             };
